@@ -1,0 +1,116 @@
+name: container
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/terraformagreg-translation-cn/tfgm-radio
+
+jobs:
+  smoke:
+    name: build + stream smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t tfgm-radio:ci .
+
+      - name: Run against a synthetic track and probe the stream
+        run: |
+          set -euo pipefail
+          mkdir -p music
+          python3 - <<'EOF'
+          import math, struct, wave
+          w = wave.open("music/tone.wav", "wb")
+          w.setnchannels(2)
+          w.setsampwidth(2)
+          w.setframerate(44100)
+          frames = b"".join(
+              struct.pack("<hh", *([int(0.2 * 32767 * math.sin(2 * math.pi * 523 * i / 44100))] * 2))
+              for i in range(44100 * 12))
+          w.writeframes(frames)
+          w.close()
+          EOF
+
+          docker run -d --name radio \
+            -v "$PWD/music:/music:ro" \
+            -e RADIO_DIR=/music -e RADIO_TOKEN=ci -e RADIO_PREBUFFER_KB=16 \
+            -p 8080:8080 tfgm-radio:ci
+
+          for _ in $(seq 1 30); do
+            curl -fsS -o /dev/null "http://127.0.0.1:8080/nowplaying?k=ci" && break || sleep 1
+          done
+
+          curl -fsS "http://127.0.0.1:8080/nowplaying?k=ci" | tee status.json
+          python3 -c "import json; d=json.load(open('status.json')); assert d['track'], d"
+
+          curl -sS -D headers.txt -o /dev/null --max-time 2 \
+            "http://127.0.0.1:8080/radio.mp3?k=ci" || true
+          cat headers.txt
+          grep -qi '^content-type: audio/mpeg' headers.txt
+          grep -qi '^transfer-encoding: chunked' headers.txt
+          if grep -qi '^content-length:' headers.txt; then echo "must not send Content-Length"; exit 1; fi
+
+          curl -sN --max-time 8 "http://127.0.0.1:8080/radio.mp3?k=ci" -o capture.mp3 || true
+          test -s capture.mp3
+
+          docker run --rm -v "$PWD:/w:ro" --entrypoint ffprobe tfgm-radio:ci \
+            -v error -show_entries stream=codec_name,sample_rate,channels -of default=nw=1 /w/capture.mp3 \
+            | tee probe.txt
+          grep -q 'codec_name=mp3' probe.txt
+          grep -q 'sample_rate=44100' probe.txt
+          grep -q 'channels=2' probe.txt
+
+      - name: Container logs
+        if: always()
+        run: docker logs radio || true
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f radio || true
+
+  publish:
+    name: publish to GHCR
+    if: github.event_name != 'pull_request'
+    needs: smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,format=short
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
