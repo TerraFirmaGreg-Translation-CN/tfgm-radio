@@ -59,7 +59,7 @@ curl "http://127.0.0.1:8080/nowplaying"                       # 当前曲目、�
 
 ## Docker（镜像由 GitHub Actions 构建）
 
-`ghcr.io/terraformagreg-translation-cn/tfgm-radio:latest`，`linux/amd64` + `linux/arm64`。每次 push 到 `main` 或打 tag 都会先跑冒烟测试（起容器 → 读一段合成音频 → 校验 `audio/mpeg`、`chunked`、无 `Content-Length` → 用镜像里的 `ffprobe` 解码），通过后才推镜像。
+`ghcr.io/terrafirmagreg-translation-cn/tfgm-radio:latest`，`linux/amd64` + `linux/arm64`。每次 push 到 `main` 或打 tag 都会先跑冒烟测试（起容器 → 读一段合成音频 → 校验 `audio/mpeg`、`chunked`、无 `Content-Length` → 用镜像里的 `ffprobe` 解码），通过后才推镜像。
 
 ```bash
 docker run -d --name tfg-radio --restart unless-stopped -p 8080:8080 \
@@ -67,7 +67,7 @@ docker run -d --name tfg-radio --restart unless-stopped -p 8080:8080 \
   -e NAVIDROME_USER=radio \
   -e NAVIDROME_PASSWORD='密码' \
   -e RADIO_TOKEN='随机串' \
-  ghcr.io/terraformagreg-translation-cn/tfgm-radio:latest
+  ghcr.io/terrafirmagreg-translation-cn/tfgm-radio:latest
 ```
 
 compose 版本见 `deploy/docker-compose.yml`：
