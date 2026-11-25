@@ -12,7 +12,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/terrafirmagreg-translation-cn/tfgm-radio
+  IMAGE: ghcr.io/terrafirmagreg-translation-cn/tfgm-radio-stream
 
 jobs:
   smoke:

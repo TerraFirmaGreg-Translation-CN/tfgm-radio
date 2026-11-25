@@ -1,6 +1,6 @@
 services:
   tfg-radio:
-    image: ghcr.io/terrafirmagreg-translation-cn/tfgm-radio:latest
+    image: ghcr.io/terrafirmagreg-translation-cn/tfgm-radio-stream:latest
     container_name: tfg-radio
     restart: unless-stopped
     environment:
