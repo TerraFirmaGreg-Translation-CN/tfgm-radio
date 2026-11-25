@@ -1,0 +1,14 @@
+services:
+  tfg-radio:
+    image: ghcr.io/terraformagreg-translation-cn/tfgm-radio:latest
+    container_name: tfg-radio
+    restart: unless-stopped
+    environment:
+      NAVIDROME_URL: ${NAVIDROME_URL:-http://navidrome:4533}
+      NAVIDROME_USER: ${NAVIDROME_USER:-radio}
+      NAVIDROME_PASSWORD: ${NAVIDROME_PASSWORD:?set NAVIDROME_PASSWORD in .env}
+      RADIO_TOKEN: ${RADIO_TOKEN:?set RADIO_TOKEN in .env}
+      RADIO_BITRATE: ${RADIO_BITRATE:-160}
+      RADIO_PREBUFFER_KB: ${RADIO_PREBUFFER_KB:-64}
+    ports:
+      - "${RADIO_PORT:-8080}:8080"

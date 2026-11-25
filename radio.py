@@ -464,25 +464,45 @@ def make_handler(radio):
 # --------------------------------------------------------------------------
 
 
+def _env(name, default=None):
+    return os.environ.get(name, default)
+
+
 def parse_args(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--navidrome-url", help="e.g. http://127.0.0.1:4533")
-    ap.add_argument("--user")
-    ap.add_argument("--password", default=os.environ.get("NAVIDROME_PASSWORD"),
-                    help="or set NAVIDROME_PASSWORD")
-    ap.add_argument("--music-folder", help="Navidrome music folder id")
-    ap.add_argument("--genre", help="only random songs of this genre")
-    ap.add_argument("--dir", help="play files from a local directory instead")
-    ap.add_argument("--listen", default="0.0.0.0:8080")
-    ap.add_argument("--bitrate", type=int, default=160, help="kbit/s")
-    ap.add_argument("--sample-rate", type=int, default=44100)
-    ap.add_argument("--channels", type=int, default=2)
-    ap.add_argument("--buffer-mb", type=int, default=16)
-    ap.add_argument("--prebuffer-kb", type=int, default=64)
-    ap.add_argument("--token", help="require ?k=TOKEN on every request")
-    ap.add_argument("--ffmpeg", default=os.environ.get("FFMPEG", "ffmpeg"))
-    ap.add_argument("--log-level", default="INFO")
+    ap.add_argument("--navidrome-url", default=_env("NAVIDROME_URL"),
+                    help="e.g. http://127.0.0.1:4533 (env NAVIDROME_URL)")
+    ap.add_argument("--user", default=_env("NAVIDROME_USER"),
+                    help="Subsonic user (env NAVIDROME_USER)")
+    ap.add_argument("--password", default=_env("NAVIDROME_PASSWORD"),
+                    help="Subsonic password (env NAVIDROME_PASSWORD)")
+    ap.add_argument("--music-folder", default=_env("NAVIDROME_MUSIC_FOLDER"),
+                    help="Navidrome music folder id (env NAVIDROME_MUSIC_FOLDER)")
+    ap.add_argument("--genre", default=_env("RADIO_GENRE"),
+                    help="only random songs of this genre (env RADIO_GENRE)")
+    ap.add_argument("--dir", default=_env("RADIO_DIR"),
+                    help="play files from a local directory instead (env RADIO_DIR)")
+    ap.add_argument("--listen", default=_env("RADIO_LISTEN", "0.0.0.0:8080"),
+                    help="host:port (env RADIO_LISTEN, default 0.0.0.0:8080)")
+    ap.add_argument("--bitrate", type=int, default=int(_env("RADIO_BITRATE", "160")),
+                    help="kbit/s (env RADIO_BITRATE, default 160)")
+    ap.add_argument("--sample-rate", type=int,
+                    default=int(_env("RADIO_SAMPLE_RATE", "44100")),
+                    help="(env RADIO_SAMPLE_RATE)")
+    ap.add_argument("--channels", type=int, default=int(_env("RADIO_CHANNELS", "2")),
+                    help="(env RADIO_CHANNELS)")
+    ap.add_argument("--buffer-mb", type=int,
+                    default=int(_env("RADIO_BUFFER_MB", "16")),
+                    help="ring buffer size (env RADIO_BUFFER_MB)")
+    ap.add_argument("--prebuffer-kb", type=int,
+                    default=int(_env("RADIO_PREBUFFER_KB", "64")),
+                    help="how far behind live a new listener starts (env RADIO_PREBUFFER_KB)")
+    ap.add_argument("--token", default=_env("RADIO_TOKEN"),
+                    help="require ?k=TOKEN on every request (env RADIO_TOKEN)")
+    ap.add_argument("--ffmpeg", default=_env("FFMPEG", "ffmpeg"),
+                    help="ffmpeg binary (env FFMPEG)")
+    ap.add_argument("--log-level", default=_env("RADIO_LOG_LEVEL", "INFO"))
     args = ap.parse_args(argv)
     if not args.dir and not (args.navidrome_url and args.user and args.password):
         ap.error("need --dir, or --navidrome-url/--user/--password")

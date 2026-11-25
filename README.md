@@ -24,7 +24,7 @@ Etched 的收音机（`SoundTracker.playRadio`）用 `AudioFileType.BOTH` 打开
 ## 依赖
 
 - `python3` ≥ 3.8（只用标准库）
-- `ffmpeg`，需带 `libmp3lame`：`ffmpeg -encoders | grep libmp3lame`
+- `ffmpeg`，需带 `libmp3lame`：`ffmpeg -encoders | grep libmp3lame`（用镜像时已内置）
 - Navidrome，Subsonic API 默认开启
 
 ## 启动
@@ -56,6 +56,43 @@ curl "http://127.0.0.1:8080/nowplaying"                       # 当前曲目、�
 ```
 
 `--dir /path/to/music` 可脱离 Navidrome 用本地文件调试。
+
+## Docker（镜像由 GitHub Actions 构建）
+
+`ghcr.io/terraformagreg-translation-cn/tfgm-radio:latest`，`linux/amd64` + `linux/arm64`。每次 push 到 `main` 或打 tag 都会先跑冒烟测试（起容器 → 读一段合成音频 → 校验 `audio/mpeg`、`chunked`、无 `Content-Length` → 用镜像里的 `ffprobe` 解码），通过后才推镜像。
+
+```bash
+docker run -d --name tfg-radio --restart unless-stopped -p 8080:8080 \
+  -e NAVIDROME_URL=http://navidrome:4533 \
+  -e NAVIDROME_USER=radio \
+  -e NAVIDROME_PASSWORD='密码' \
+  -e RADIO_TOKEN='随机串' \
+  ghcr.io/terraformagreg-translation-cn/tfgm-radio:latest
+```
+
+compose 版本见 `deploy/docker-compose.yml`：
+
+```bash
+cd deploy && cp .env.example .env    # 填 NAVIDROME_PASSWORD、RADIO_TOKEN
+docker compose up -d
+```
+
+每个命令行参数都有同名环境变量，容器里不用写参数：
+
+| 环境变量 | 参数 | 默认 |
+|---|---|---|
+| `NAVIDROME_URL` | `--navidrome-url` | 必填 |
+| `NAVIDROME_USER` / `NAVIDROME_PASSWORD` | `--user` / `--password` | 必填 |
+| `NAVIDROME_MUSIC_FOLDER` | `--music-folder` | 全部媒体库 |
+| `RADIO_GENRE` | `--genre` | 不限 |
+| `RADIO_DIR` | `--dir` | —（本地文件调试） |
+| `RADIO_LISTEN` | `--listen` | `0.0.0.0:8080` |
+| `RADIO_TOKEN` | `--token` | 无 |
+| `RADIO_BITRATE` | `--bitrate` | `160` |
+| `RADIO_SAMPLE_RATE` / `RADIO_CHANNELS` | 同名参数 | `44100` / `2` |
+| `RADIO_PREBUFFER_KB` | `--prebuffer-kb` | `64` |
+| `RADIO_BUFFER_MB` | `--buffer-mb` | `16` |
+| `FFMPEG` | `--ffmpeg` | `ffmpeg` |
 
 ## 参数
 
